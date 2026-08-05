@@ -30,7 +30,7 @@ jobs:
       - name: Infrastructure Security Scanning (Checkov)
         uses: bridgecrewio/checkov-action@master
         with:
-          directory: ./environment
+          directory: . # '.' ka matlab root folder. Ab ye environment aur modules dono ko scan karega!
           framework: terraform
           soft_fail: true 
 
@@ -42,8 +42,9 @@ jobs:
         working-directory: ./environment
 
       - name: Terraform Format Check
-        run: terraform fmt -check
-        working-directory: ./environment
+        # -recursive flag se ye modules folder ke andar jaakar bhi formatting check karega
+        run: terraform fmt -check -recursive
+        working-directory: .
 
       - name: Terraform Validate
         run: terraform validate
@@ -54,8 +55,9 @@ jobs:
         uses: terraform-linters/setup-tflint@v4
         
       - name: Run TFLint
-        run: tflint -f compact
-        working-directory: ./environment
+        # --recursive flag se ye modules ko bhi lint karega
+        run: tflint -f compact --recursive
+        working-directory: .
 
       # 5. Cloud Cost Estimation (Infracost) - FinOps
       - name: Setup Infracost
