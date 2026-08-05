@@ -1,4 +1,4 @@
-name: Terraform DevSecOps Pipeline
+name: Terraform DevSecOps Pipeline (Code Quality Only)
 
 on:
   push:
@@ -6,9 +6,7 @@ on:
   pull_request:
     branches: ["main"]
 
-# DevSecOps Best Practice: Least privilege permissions
 permissions:
-  id-token: write
   contents: read
 
 jobs:
@@ -22,27 +20,21 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # 1. Secret Scanning
       - name: Secret Scanning with Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 5. Cloud Cost Estimation (Infracost) - FinOps (Moved up!)
-      - name: Setup Infracost
-        uses: infracost/actions/setup@v3
-        with:
-          api-key: ${{ secrets.INFRACOST_API_KEY }}
-
-      - name: Run Infracost
-        run: infracost breakdown --path ./environment
-
+      # 2. IaC Security Scanning (SAST)
       - name: Infrastructure Security Scanning (Checkov)
         uses: bridgecrewio/checkov-action@master
         with:
-          directory: . # '.' ka matlab root folder. Ab ye environment aur modules dono ko scan karega!
+          directory: . 
           framework: terraform
           soft_fail: true 
 
+      # 3. Terraform Validation
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
@@ -51,7 +43,6 @@ jobs:
         working-directory: ./environment
 
       - name: Terraform Format Check
-        # -recursive flag se ye modules folder ke andar jaakar bhi formatting check karega
         run: terraform fmt -check -recursive
         working-directory: .
 
@@ -59,87 +50,10 @@ jobs:
         run: terraform validate
         working-directory: ./environment
 
-      # 4. Terraform Linter (TFLint) - Code Quality & Best Practices
+      # 4. Terraform Linter (TFLint)
       - name: Setup TFLint
         uses: terraform-linters/setup-tflint@v4
         
       - name: Run TFLint
-        # --recursive flag se ye modules ko bhi lint karega
         run: tflint -f compact --recursive
         working-directory: .
-
-  # -------------------------------------------------------------
-  # STAGE 2: TERRAFORM PLAN
-  # -------------------------------------------------------------
-  plan:
-    name: Terraform Plan
-    needs: security-and-validate
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Init
-        run: terraform init
-        working-directory: ./environment
-
-      - name: Terraform Plan
-        run: terraform plan -out=tfplan
-        working-directory: ./environment
-
-      # Plan output ko save kar rahe hain taaki Apply me use kar sakein
-      - name: Upload Terraform Plan
-        uses: actions/upload-artifact@v4
-        with:
-          name: tfplan
-          path: ./environment/tfplan
-
-  # -------------------------------------------------------------
-  # STAGE 3: TERRAFORM APPLY (WITH MANUAL APPROVAL)
-  # -------------------------------------------------------------
-  apply:
-    name: Terraform Apply
-    needs: plan
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    # YE LINE SABSE IMPORTANT HAI: 
-    # 'production' environment ke rules ab applies honge (jinhe aap Github me setup karenge)
-    environment: 
-      name: production
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Download Terraform Plan
-        uses: actions/download-artifact@v4
-        with:
-          name: tfplan
-          path: ./environment
-
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Init
-        run: terraform init
-        working-directory: ./environment
-
-      - name: Terraform Apply
-        run: terraform apply -auto-approve tfplan
-        working-directory: ./environment
