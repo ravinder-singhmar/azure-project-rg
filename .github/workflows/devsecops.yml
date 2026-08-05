@@ -27,6 +27,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # 5. Cloud Cost Estimation (Infracost) - FinOps (Moved up!)
+      - name: Setup Infracost
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Run Infracost
+        run: infracost breakdown --path ./environment
+
       - name: Infrastructure Security Scanning (Checkov)
         uses: bridgecrewio/checkov-action@master
         with:
@@ -58,16 +67,6 @@ jobs:
         # --recursive flag se ye modules ko bhi lint karega
         run: tflint -f compact --recursive
         working-directory: .
-
-      # 5. Cloud Cost Estimation (Infracost) - FinOps
-      - name: Setup Infracost
-        uses: infracost/actions/setup@v3
-        with:
-          # Infracost ki website se free API key milti hai
-          api-key: ${{ secrets.INFRACOST_API_KEY }}
-
-      - name: Run Infracost
-        run: infracost breakdown --path ./environment
 
   # -------------------------------------------------------------
   # STAGE 2: TERRAFORM PLAN
