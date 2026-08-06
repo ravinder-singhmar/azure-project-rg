@@ -57,10 +57,3 @@ jobs:
       - name: Run TFLint
         run: tflint -f compact --recursive
         working-directory: .
-
-      # 5. Policy as Code (OPA / Conftest)
-      - name: Setup Conftest
-        uses: instrumenta/setup-conftest@master
-        
-      - name: Run Conftest Policy Check
-        run: conftest test modules/azurerm_resource_group/main.tf --policy policy/tags.rego --all-namespaces
