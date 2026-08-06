@@ -16,7 +16,7 @@ vnetdetails = {
     resource_group_name = "dev-rg1"
     address_space       = ["10.0.0.0/16"]
   }
-  vnet1 = {
+  vnet2 = {
     name                = "dev-vnet2"
     location            = "west US"
     resource_group_name = "dev-rg2"
